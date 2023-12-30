@@ -1,105 +1,8 @@
-package images
-
-import (
-	"bytes"
-	"fmt"
-	"image"
-	"image/jpeg"
-	"image/png"
-	"net/http"
-	"strings"
-
-	"github.com/go-chi/chi"
-	"github.com/nfnt/resize"
-)
-
-type Server struct {
-	Router  chi.Router
-	Service *Service
-}
-
-func NewServer(s *Service) *Server {
-
-	r := chi.NewRouter()
-
-	svr := &Server{
-		Router:  r,
-		Service: s,
-	}
-
-	r.Mount("/", svr.Routes())
-
-	return svr
-
-}
-
-func (s *Server) showUploadForm(w http.ResponseWriter, r *http.Request) {
-
-	html := homePage()
-	w.Write([]byte(html))
-
-}
-
-func (s *Server) uploadImage(w http.ResponseWriter, r *http.Request) {
-
-	file, handler, err := r.FormFile("image")
-	if err != nil {
-		http.Error(w, "Error parsing image", http.StatusBadRequest)
-		return
-	}
-	defer file.Close()
-
-	img, _, err := image.Decode(file)
-	if err != nil {
-		http.Error(w, "Error decoding image", http.StatusInternalServerError)
-		return
-	}
-
-	transformationType := r.FormValue("transformation")
-	newFilename := transformationType + "_" + handler.Filename
-	var newImg image.Image
-
-	switch transformationType {
-	case "rebaixado":
-		newImg = resize.Resize(uint(img.Bounds().Dx()*5), uint(img.Bounds().Dy()), img, resize.Lanczos3)
-	case "pixelado":
-		pixelSize := 15
-		newImg = resize.Resize(uint(img.Bounds().Dx()/pixelSize), uint(img.Bounds().Dy()/pixelSize), img, resize.NearestNeighbor)
-	}
-
-	var imgBuffer bytes.Buffer
-
-	format := strings.Split(handler.Filename, ".")[1]
-	if err := encodeImage(&imgBuffer, newImg, format); err != nil {
-		http.Error(w, "Error encoding image", http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Disposition", "attachment; filename="+newFilename)
-
-	if _, err := w.Write(imgBuffer.Bytes()); err != nil {
-		http.Error(w, "Error writing image to response", http.StatusInternalServerError)
-		return
-	}
-
-}
-
-func encodeImage(imgBuffer *bytes.Buffer, img image.Image, format string) error {
-	switch format {
-	case "png":
-		return png.Encode(imgBuffer, img)
-	case "jpeg", "jpg":
-		return jpeg.Encode(imgBuffer, img, nil)
-	default:
-		return fmt.Errorf("Unsupported image format: %s", format)
-	}
-}
-
-func homePage() string {
-
-	return `
-    <html>
+<html>
         <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width">
+            <link rel="icon" href="icon.png" type="image/icon">
             <style>
                 body {
                     font-family: Arial, sans-serif;
@@ -157,8 +60,43 @@ func homePage() string {
                 input[type="submit"]:hover {
                     background-color: #0056b3;
                 }
+
+                footer {
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    text-align: center;
+                    padding: 20px 0;
+                }
+
+                .footer-content {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                }
+
+                .footer-links ul {
+                    list-style-type: none;
+                    padding: 0;
+                    display: flex;
+                }
+
+                .footer-links li {
+                    margin-right: 15px;
+                }
+
+                .footer-links a {
+                    text-decoration: none;
+                    color: #0056b3;
+                }
+
+                .footer-disclaimer {
+                    text-align: center;
+                    margin-top: 10px;
+                }
             </style>
         </head>
+        <title>Image Messer</title>
         <body>
             <form action="/upload" method="post" enctype="multipart/form-data">
                 <div class="file-upload-box">
@@ -168,8 +106,11 @@ func homePage() string {
                 <br>
                 <label for="transformation">Choose Transformation:</label>
                 <select name="transformation" id="transformation">
-                    <option value="rebaixado">Rebaixado</option>
-                    <option value="pixelado">Pixelado</option>
+                    <option value="" disabled selected>Choose Transformation</option>
+                    <option value="stretched">Stretched</option>
+                    <option value="pixelated">Pixelated</option>
+                    <option value="joker">Joker</option>
+                    <option value="chuu">Chuu</option>
                 </select>
                 <br>
                 <input type="submit" value="Upload and Transform">
@@ -180,12 +121,24 @@ func homePage() string {
                     if (event.target.files.length > 0) {
                         fileLabel.textContent = event.target.files[0].name;
                     } else {
-                        fileLabel.textContent = 'Drag file here or click to upload';
+                        fileLabel.textContent = 'Upload Image';
                     }
                 }
             </script>
+            <footer>
+                <div class="footer-content">
+                    <div class="footer-links">
+                        <ul>
+                            <li><a href="#">Home</a></li>
+                            <li><a href="#">About</a></li>
+                            <li><a href="#">Contribute</a></li>
+                            <li><a href="https://github.com/beatrizhub/image-messer" target="_blank">GitHub</a></li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="footer-disclaimer">
+                    &copy; 2023 Beatriz Rodrigues. All rights reserved.
+                </div>
+            </footer>
         </body>
     </html>
-    `
-
-}

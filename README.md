@@ -2,7 +2,7 @@
 
 ## Description
 
-This is a simple tool to mess with images. It can be used to create a new image from a given image by applying a selected transformation to it.
+This is a simple website to mess with images. It can be used to create a new image from a given image by applying a selected transformation to it.
 
 ## Usage
 

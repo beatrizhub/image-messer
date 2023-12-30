@@ -1,15 +1,12 @@
 package main
 
 import (
-	"image-messer/pkg/images"
-	"net/http"
+	"image-messer/images"
 )
 
 func main() {
-
 	svc := images.NewService()
-	s := images.NewServer(svc)
+	svr := images.NewServer(":8080", svc)
 
-	http.ListenAndServe(":8080", s.Router)
-
+	svr.Run()
 }
